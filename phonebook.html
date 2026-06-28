@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전화번호부</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f5f5f5;color:#1a1a1a;padding:2rem}
+.wrap{max-width:860px;margin:0 auto}
+h2{font-size:20px;font-weight:500;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;color:#1a1a1a}
+h2 i{font-size:22px;color:#3b82f6}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.form-grid label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:#6b7280}
+.full{grid-column:1/-1}
+input[type=text],select{width:100%;height:36px;padding:0 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;color:#1a1a1a;font-size:14px;font-family:inherit;outline:none;transition:border-color 0.15s}
+input[type=text]:focus,select:focus{border-color:#3b82f6;box-shadow:0 0 0 2px #eff6ff}
+select{cursor:pointer}
+.btn-row{display:flex;gap:8px;justify-content:flex-end}
+button{height:36px;padding:0 16px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all 0.15s;border:1px solid #d1d5db;background:#fff;color:#1a1a1a}
+button:hover{background:#f9fafb}
+button.primary{background:#3b82f6;color:#fff;border-color:transparent}
+button.primary:hover{background:#2563eb}
+button.danger{color:#dc2626}
+button.danger:hover{background:#fef2f2;border-color:#fca5a5}
+.search-row{display:flex;gap:8px;margin-bottom:1rem;align-items:center}
+.search-row input{flex:1}
+.search-row select{width:140px}
+.count{font-size:13px;color:#9ca3af;margin-left:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;padding:8px 10px;font-size:12px;font-weight:500;color:#6b7280;border-bottom:1px solid #e5e7eb;background:#f9fafb}
+td{padding:10px;border-bottom:1px solid #f3f4f6;color:#1a1a1a;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f9fafb}
+.tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:500}
+.tag-mobile{background:#eff6ff;color:#1d4ed8}
+.tag-home{background:#f0fdf4;color:#15803d}
+.tag-work{background:#fffbeb;color:#b45309}
+.tag-fax{background:#f5f3ff;color:#6d28d9}
+.tag-other{background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb}
+.empty{text-align:center;padding:2.5rem;color:#9ca3af;font-size:14px}
+.toast{position:fixed;top:1.5rem;right:1.5rem;padding:10px 16px;border-radius:6px;font-size:13px;font-weight:500;opacity:0;transition:opacity 0.2s;pointer-events:none;z-index:100}
+.toast.show{opacity:1}
+.toast.ok{background:#f0fdf4;color:#15803d;border:1px solid #86efac}
+.toast.err{background:#fef2f2;color:#dc2626;border:1px solid #fca5a5}
+.edit-mode td:not(:last-child){padding:4px 6px}
+.edit-mode input,.edit-mode select{height:30px;font-size:13px}
+.act-btn{padding:0 10px;height:28px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="toast" class="toast"></div>
+  <h2><i class="ti ti-address-book"></i>전화번호부</h2>
+
+  <!-- 입력 폼 -->
+  <div class="card">
+    <div class="form-grid">
+      <label>이름 <input type="text" id="f-name" placeholder="홍길동"></label>
+      <label>전화번호 <input type="text" id="f-phone" placeholder="010-0000-0000"></label>
+      <label>분류
+        <select id="f-type">
+          <option value="mobile">휴대폰</option>
+          <option value="work">직장</option>
+          <option value="home">집</option>
+          <option value="fax">팩스</option>
+          <option value="other">기타</option>
+        </select>
+      </label>
+      <label>소속/메모 <input type="text" id="f-memo" placeholder="선택사항"></label>
+    </div>
+    <div class="btn-row">
+      <button onclick="clearForm()">초기화</button>
+      <button class="primary" onclick="addContact()"><i class="ti ti-plus"></i> 추가</button>
+    </div>
+  </div>
+
+  <!-- 검색/필터 -->
+  <div class="search-row">
+    <input type="text" id="search" placeholder="이름 또는 번호 검색..." oninput="render()">
+    <select id="filter-type" onchange="render()">
+      <option value="">전체 분류</option>
+      <option value="mobile">휴대폰</option>
+      <option value="work">직장</option>
+      <option value="home">집</option>
+      <option value="fax">팩스</option>
+      <option value="other">기타</option>
+    </select>
+    <span class="count" id="count-label"></span>
+  </div>
+
+  <!-- 목록 테이블 -->
+  <div class="card" style="padding:0;overflow:hidden">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:120px">이름</th>
+          <th style="width:160px">전화번호</th>
+          <th style="width:80px">분류</th>
+          <th>소속/메모</th>
+          <th style="width:110px;text-align:right">작업</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const TYPE_LABEL = {mobile:'휴대폰', work:'직장', home:'집', fax:'팩스', other:'기타'};
+const TYPE_CLASS  = {mobile:'tag-mobile', work:'tag-work', home:'tag-home', fax:'tag-fax', other:'tag-other'};
+
+let contacts = JSON.parse(localStorage.getItem('pb_contacts') || '[]');
+let editId = null;
+
+function save() {
+  localStorage.setItem('pb_contacts', JSON.stringify(contacts));
+}
+
+/* 전화번호 자동 하이픈 */
+function fmtPhone(v) {
+  v = v.replace(/\D/g, '');
+  if (v.startsWith('02')) {
+    if (v.length <= 5)  return v;
+    if (v.length <= 9)  return v.slice(0,2)+'-'+v.slice(2,5)+'-'+v.slice(5);
+    return v.slice(0,2)+'-'+v.slice(2,6)+'-'+v.slice(6,10);
+  }
+  if (v.length <= 3)  return v;
+  if (v.length <= 7)  return v.slice(0,3)+'-'+v.slice(3);
+  if (v.length <= 11) return v.slice(0,3)+'-'+v.slice(3,7)+'-'+v.slice(7);
+  return v;
+}
+document.getElementById('f-phone').addEventListener('input', function() {
+  this.value = fmtPhone(this.value);
+});
+
+function toast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.className = 'toast', 2000);
+}
+
+function clearForm() {
+  ['f-name','f-phone','f-memo'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-type').value = 'mobile';
+  editId = null;
+}
+
+function addContact() {
+  const name  = document.getElementById('f-name').value.trim();
+  const phone = document.getElementById('f-phone').value.trim();
+  const type  = document.getElementById('f-type').value;
+  const memo  = document.getElementById('f-memo').value.trim();
+  if (!name)  { toast('이름을 입력하세요', 'err'); return; }
+  if (!phone) { toast('전화번호를 입력하세요', 'err'); return; }
+  if (!/^[\d\-\+\(\)\s]+$/.test(phone)) { toast('올바른 전화번호 형식이 아닙니다', 'err'); return; }
+  contacts.push({ id: Date.now(), name, phone, type, memo });
+  save(); render(); clearForm();
+  toast('연락처가 추가되었습니다');
+}
+
+function deleteContact(id) {
+  if (!confirm('이 연락처를 삭제하시겠습니까?')) return;
+  contacts = contacts.filter(c => c.id !== id);
+  save(); render();
+  toast('삭제되었습니다');
+}
+
+function startEdit(id) {
+  editId = id; render();
+}
+
+function saveEdit(id) {
+  const name  = document.getElementById('e-name-'+id).value.trim();
+  const phone = document.getElementById('e-phone-'+id).value.trim();
+  const type  = document.getElementById('e-type-'+id).value;
+  const memo  = document.getElementById('e-memo-'+id).value.trim();
+  if (!name || !phone) { toast('이름과 전화번호는 필수입니다', 'err'); return; }
+  const idx = contacts.findIndex(c => c.id === id);
+  contacts[idx] = { id, name, phone, type, memo };
+  editId = null; save(); render();
+  toast('수정되었습니다');
+}
+
+function esc(s) {
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function render() {
+  const q  = document.getElementById('search').value.toLowerCase();
+  const ft = document.getElementById('filter-type').value;
+  const filtered = contacts.filter(c => {
+    const match = !q || c.name.toLowerCase().includes(q) || c.phone.includes(q) || c.memo.toLowerCase().includes(q);
+    const byType = !ft || c.type === ft;
+    return match && byType;
+  });
+  document.getElementById('count-label').textContent = filtered.length + '개';
+
+  const tbody = document.getElementById('tbody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">
+      <i class="ti ti-users" style="font-size:28px;display:block;margin:0 auto 8px;opacity:0.3"></i>
+      ${contacts.length === 0 ? '연락처를 추가해보세요' : '검색 결과가 없습니다'}
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(c => {
+    if (editId === c.id) return `<tr class="edit-mode">
+      <td><input type="text" id="e-name-${c.id}"  value="${esc(c.name)}"></td>
+      <td><input type="text" id="e-phone-${c.id}" value="${esc(c.phone)}"></td>
+      <td><select id="e-type-${c.id}">
+        ${Object.entries(TYPE_LABEL).map(([v,l]) =>
+          `<option value="${v}"${c.type===v?' selected':''}>${l}</option>`).join('')}
+      </select></td>
+      <td><input type="text" id="e-memo-${c.id}" value="${esc(c.memo)}"></td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="act-btn primary" onclick="saveEdit(${c.id})">저장</button>
+        <button class="act-btn" onclick="editId=null;render()" style="margin-left:4px">취소</button>
+      </td>
+    </tr>`;
+
+    return `<tr>
+      <td style="font-weight:500">${esc(c.name)}</td>
+      <td style="font-family:monospace;font-size:13px">${esc(c.phone)}</td>
+      <td><span class="tag ${TYPE_CLASS[c.type]||'tag-other'}">${TYPE_LABEL[c.type]||c.type}</span></td>
+      <td style="color:#6b7280;font-size:13px">${esc(c.memo)||'—'}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="act-btn" onclick="startEdit(${c.id})" title="수정"><i class="ti ti-edit"></i></button>
+        <button class="act-btn danger" onclick="deleteContact(${c.id})" title="삭제" style="margin-left:4px"><i class="ti ti-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+render();
+</script>
+</body>
+</html>
