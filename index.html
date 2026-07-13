@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>계정 관리</title>
+<style>
+  :root{
+    --bg:#ffffff;
+    --surface:#ffffff;
+    --surface-hover:#f4f6f9;
+    --border:#e3e6ec;
+    --text:#1c1f26;
+    --text-dim:#6b7280;
+    --text-faint:#9aa0ab;
+    --accent:#3b6fe0;
+    --accent-dim:#2952b3;
+    --mint:#0f9d70;
+    --danger:#e0453d;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    --sans: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    min-height:100vh;
+    padding:32px 24px 80px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+
+  /* header */
+  .header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:14px;}
+  .title-block h1{font-size:22px;font-weight:700;margin:0 0 4px;letter-spacing:-0.02em;}
+  .title-block p{margin:0;color:var(--text-dim);font-size:13px;}
+  .toolbar{display:flex;gap:8px;align-items:center;}
+  .search{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px 12px;
+    font-size:13px;
+    color:var(--text);
+    width:220px;
+    outline:none;
+    transition:border-color .15s;
+  }
+  .search:focus{border-color:var(--accent);}
+  .search::placeholder{color:var(--text-faint);}
+  .btn{
+    border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;
+    cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+    transition:background .15s, transform .1s;
+    font-family:var(--sans);
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{background:var(--accent);color:#0d1117;}
+  .btn-primary:hover{background:#7aa1ff;}
+  .btn-ghost{background:transparent;color:var(--text-dim);border:1px solid var(--border);}
+  .btn-ghost:hover{background:var(--surface-hover);color:var(--text);}
+  #driveStatusBtn.connected{color:var(--mint);border-color:var(--mint);}
+  #driveStatusBtn.connecting{opacity:.6;}
+
+  /* table */
+  .table{
+    border:1px solid var(--border);
+    border-radius:12px;
+    overflow:hidden;
+    background:var(--surface);
+  }
+  .row{
+    display:grid;
+    grid-template-columns: 22px 26px 1.2fr 1.2fr 1.4fr 1.3fr 0.9fr 160px 84px;
+    align-items:center;
+    padding:0 14px;
+    border-bottom:1px solid var(--border);
+    min-height:52px;
+  }
+  .row:last-child{border-bottom:none;}
+  .row.head{
+    background:#f7f8fa;
+    color:var(--text-faint);
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    min-height:38px;
+  }
+  .row.body:hover{background:var(--surface-hover);}
+  .cell{padding:8px 8px 8px 0;font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+  .cell.site{font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;}
+  .site-icon{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+  .cell.mono{font-family:var(--mono);color:var(--text-dim);font-size:12.5px;}
+  .copy-group{display:flex;align-items:center;gap:6px;}
+  .copy-btn{
+    background:none;border:none;color:var(--text-faint);cursor:pointer;
+    padding:3px;border-radius:5px;display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;transition:color .15s, background .15s;
+  }
+  .copy-btn:hover{color:var(--accent);background:rgba(91,140,255,0.1);}
+  .copy-btn.copied{color:var(--mint);}
+  .pw-dots{letter-spacing:2px;}
+  .cell.memo{color:var(--text-dim);}
+  .cell.link a{color:var(--accent);text-decoration:none;font-size:12.5px;}
+  .cell.link a:hover{text-decoration:underline;}
+  .cell.attach{color:var(--text-faint);font-size:12px;display:flex;flex-wrap:nowrap;gap:5px;overflow:hidden;white-space:nowrap;}
+  .cell.attach .clip{opacity:.6;margin-right:4px;}
+  .row-num{color:var(--text-faint);font-size:11px;}
+  .drag-handle{
+    display:flex;align-items:center;justify-content:center;
+    color:var(--text-faint);cursor:grab;padding:4px 0;
+    touch-action:none;
+  }
+  .drag-handle:hover{color:var(--text-dim);}
+  .row.body{transition:background .12s, box-shadow .12s, opacity .12s;}
+  .row.body.dragging{opacity:0.4;}
+  .row.body.drag-over-top{box-shadow: inset 0 2px 0 0 var(--accent);}
+  .row.body.drag-over-bottom{box-shadow: inset 0 -2px 0 0 var(--accent);}
+  .actions{display:flex;gap:4px;justify-content:flex-end;padding-right:2px;}
+  .icon-btn{
+    background:none;border:none;cursor:pointer;color:var(--text-faint);
+    padding:5px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    transition:color .15s, background .15s;
+  }
+  .icon-btn:hover{background:var(--surface-hover);color:var(--text);}
+  .icon-btn.del:hover{color:var(--danger);}
+
+  .empty{padding:60px 20px;text-align:center;color:var(--text-faint);}
+  .empty b{color:var(--text-dim);display:block;margin-bottom:6px;font-size:14px;}
+
+  /* modal */
+  .overlay{
+    position:fixed;inset:0;background:rgba(8,9,12,0.6);backdrop-filter:blur(2px);
+    display:none;align-items:center;justify-content:center;z-index:50;
+    animation:fadeIn .15s ease;
+  }
+  .overlay.show{display:flex;}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .modal{
+    background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    width:420px;max-width:92vw;padding:22px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    animation:pop .15s ease;
+  }
+  @keyframes pop{from{transform:translateY(6px) scale(.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+  .modal h2{margin:0 0 16px;font-size:16px;font-weight:700;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:11.5px;color:var(--text-dim);margin-bottom:5px;font-weight:600;}
+  .field input{
+    width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+    padding:9px 10px;color:var(--text);font-size:13px;font-family:var(--sans);outline:none;
+    transition:border-color .15s;
+  }
+  .field input:focus{border-color:var(--accent);}
+  .field.pw-field{position:relative;}
+  .field.pw-field input{padding-right:36px;font-family:var(--mono);}
+  .pw-toggle{
+    position:absolute;right:8px;top:29px;background:none;border:none;color:var(--text-faint);
+    cursor:pointer;padding:4px;display:flex;
+  }
+  .pw-toggle:hover{color:var(--text);}
+  .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:18px;}
+  .modal-actions .right{display:flex;gap:8px;}
+  .file-add-row{margin-bottom:8px;}
+  .file-chip-list{display:flex;flex-wrap:wrap;gap:6px;}
+  .file-chip{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--bg);border:1px solid var(--border);border-radius:7px;
+    padding:4px 6px 4px 9px;font-size:12px;color:var(--text-dim);max-width:100%;
+  }
+  .file-chip .fname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;}
+  .file-chip .fsize{color:var(--text-faint);font-size:10.5px;flex-shrink:0;}
+  .file-chip .fremove{
+    background:none;border:none;cursor:pointer;color:var(--text-faint);
+    display:flex;align-items:center;justify-content:center;padding:2px;border-radius:4px;flex-shrink:0;
+  }
+  .file-chip .fremove:hover{color:var(--danger);background:rgba(224,69,61,0.1);}
+  .file-hint{font-size:11px;color:var(--text-faint);margin-top:6px;line-height:1.4;}
+
+  .attach-chip{
+    display:inline-flex;align-items:center;gap:4px;
+    background:var(--surface-hover);border:1px solid var(--border);border-radius:6px;
+    padding:2px 7px;font-size:11.5px;color:var(--text-dim);cursor:pointer;
+    max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    transition:color .15s, border-color .15s;
+  }
+  .attach-chip:hover{color:var(--accent);border-color:var(--accent);}
+
+  ::-webkit-scrollbar{height:8px;width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="title-block">
+      <h1>계정 관리</h1>
+      <p id="countText">0개 항목</p>
+    </div>
+    <div class="toolbar">
+      <input type="text" class="search" id="searchInput" placeholder="사이트명 또는 ID 검색">
+      <button class="btn btn-ghost" id="driveStatusBtn" onclick="onDriveButtonClick()" title="Google Drive에 첨부파일 저장">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l9 16H3z" opacity="0"/><path d="M8.5 3h7L21 12l-3.5 7h-11L3 12z"/></svg>
+        <span id="driveStatusText">Drive 연결</span>
+      </button>
+      <button class="icon-btn" onclick="openSettingsModal()" title="설정">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852 1 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button class="btn btn-primary" onclick="openModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        추가
+      </button>
+    </div>
+  </div>
+
+  <div class="table" id="tableWrap">
+    <div class="row head">
+      <div></div>
+      <div></div>
+      <div>사이트명</div>
+      <div>ID</div>
+      <div>Password</div>
+      <div>Website</div>
+      <div>비고</div>
+      <div>첨부파일</div>
+      <div></div>
+    </div>
+    <div id="rows"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">계정 추가</h2>
+    <div class="field">
+      <label>사이트명</label>
+      <input type="text" id="f_site" placeholder="예: 교정부 메일">
+    </div>
+    <div class="field">
+      <label>ID</label>
+      <input type="text" id="f_id" placeholder="아이디 또는 이메일">
+    </div>
+    <div class="field pw-field">
+      <label>Password</label>
+      <input type="password" id="f_pw" placeholder="비밀번호">
+      <button class="pw-toggle" onclick="toggleModalPw()">
+        <svg id="modalEye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+    <div class="field">
+      <label>Website</label>
+      <input type="text" id="f_web" placeholder="https://">
+    </div>
+    <div class="field">
+      <label>비고</label>
+      <input type="text" id="f_memo" placeholder="메모 (선택)">
+    </div>
+    <div class="field">
+      <label>첨부파일</label>
+      <div class="file-add-row">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('f_attach_file').click()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          파일 선택
+        </button>
+        <input type="file" id="f_attach_file" multiple style="display:none" onchange="handleFileSelect(this)">
+      </div>
+      <div class="file-chip-list" id="modalAttachList"></div>
+      <div class="file-hint" id="attachHint">이 브라우저의 저장공간에 저장돼요. 파일 용량이 크거나 많으면 저장이 안 될 수 있어요.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="deleteInModal" style="display:none;color:var(--danger);border-color:var(--danger);" onclick="deleteFromModal()">삭제</button>
+      <div class="right">
+        <button class="btn btn-ghost" onclick="closeModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveEntry()">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <h2>설정</h2>
+    <div class="field">
+      <label>Google OAuth Client ID</label>
+      <input type="text" id="s_clientId" placeholder="xxxxxxxxxxxx.apps.googleusercontent.com">
+    </div>
+    <div class="file-hint">
+      Google Cloud Console → API 및 서비스 → 사용자 인증 정보에서 "OAuth 클라이언트 ID"(웹 애플리케이션)를 만들고, "승인된 자바스크립트 원본"에 이 페이지가 열리는 주소를 등록한 뒤 여기에 붙여넣어주세요. 같은 프로젝트에서 Google Drive API도 사용 설정해야 해요.
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <span id="settingsDriveStatus" style="font-size:12px;color:var(--text-faint);"></span>
+      <div class="right">
+        <button class="btn btn-ghost" onclick="closeSettingsModal()">닫기</button>
+        <button class="btn btn-primary" onclick="saveSettings()">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'account_manager_entries_v1';
+let entries = [];
+let editingId = null;
+let revealed = {};
+let modalAttachments = [];
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    entries = raw ? JSON.parse(raw) : seedData();
+  }catch(e){ entries = seedData(); }
+  save();
+}
+function save(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    return true;
+  }catch(e){
+    alert('저장 공간이 부족합니다. 첨부파일 용량을 줄이거나 개수를 줄여주세요.');
+    return false;
+  }
+}
+function seedData(){
+  return [
+    {id: uid(), site:'교정부 메일', idValue:'callab@hanmail.net', pw:'rywjd1518**', web:'https://www.daum.net', memo:'', attach:'P.(ID-PW)회사업무_...'},
+    {id: uid(), site:'마이스터넷(산업현장교수)', idValue:'(단체)ck2819', pw:'ck0059232#', web:'https://meister.hrdkorea.or.kr', memo:'', attach:'교정_업무관련_사이...'},
+    {id: uid(), site:'MS Office 365', idValue:'hih1009@dtnt.kr', pw:'dkatt11**', web:'https://products.office.com', memo:'', attach:''},
+    {id: uid(), site:'KOLAS', idValue:'DTNT', pw:'dkatt*8225511', web:'https://www.knab.go.kr', memo:'', attach:''},
+  ];
+}
+function uid(){ return 'e_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+function formatSize(bytes){
+  if(!bytes && bytes !== 0) return '';
+  if(bytes < 1024) return bytes + 'B';
+  if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + 'KB';
+  return (bytes/1024/1024).toFixed(1) + 'MB';
+}
+
+function maskPw(pw){
+  return '•'.repeat(Math.min(pw.length, 14));
+}
+
+function esc(str){
+  const d = document.createElement('div');
+  d.textContent = str ?? '';
+  return d.innerHTML;
+}
+
+function render(){
+  const rowsEl = document.getElementById('rows');
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const filtered = entries.filter(e =>
+    !q || e.site.toLowerCase().includes(q) || e.idValue.toLowerCase().includes(q)
+  );
+  document.getElementById('countText').textContent = `${filtered.length}개 항목`;
+
+  if(filtered.length === 0){
+    rowsEl.innerHTML = `<div class="empty"><b>등록된 계정이 없습니다</b>우측 상단의 '추가' 버튼으로 새 계정을 등록하세요.</div>`;
+    return;
+  }
+
+  rowsEl.innerHTML = filtered.map((e, idx) => {
+    const isRevealed = !!revealed[e.id];
+    const webDisplay = e.web ? e.web.replace(/^https?:\/\//,'') : '';
+    const dragAttrs = q
+      ? `draggable="false"`
+      : `draggable="true" ondragstart="onDragStart(event)" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)" ondragend="onDragEnd(event)"`;
+    return `
+    <div class="row body" data-id="${e.id}" ${dragAttrs}>
+      <div class="drag-handle" title="${q ? '검색 중에는 순서 변경 불가' : '드래그하여 순서 변경'}" style="${q ? 'opacity:.35;cursor:default;' : ''}">
+        <svg width="10" height="14" viewBox="0 0 10 16" fill="currentColor"><circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/><circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg>
+      </div>
+      <div class="row-num">${idx+1}</div>
+      <div class="cell site"><span class="site-icon"></span>${esc(e.site)}</div>
+      <div class="cell mono">
+        <div class="copy-group">
+          <span>${esc(e.idValue)}</span>
+          <button class="copy-btn" title="ID 복사" onclick="copyText('${e.id}','id',this)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="cell mono">
+        <div class="copy-group">
+          <span class="${isRevealed ? '' : 'pw-dots'}">${isRevealed ? esc(e.pw) : maskPw(e.pw)}</span>
+          <button class="copy-btn" title="${isRevealed ? '숨기기' : '표시'}" onclick="togglePw('${e.id}')">
+            ${isRevealed
+              ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+              : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>'}
+          </button>
+          <button class="copy-btn" title="비밀번호 복사" onclick="copyText('${e.id}','pw',this)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="cell link">${e.web ? `<a href="${esc(e.web)}" target="_blank" rel="noopener">${esc(webDisplay)}</a>` : ''}</div>
+      <div class="cell memo">${esc(e.memo)}</div>
+      <div class="cell attach">${
+        (e.attachments && e.attachments.length)
+          ? e.attachments.map(a => `<span class="attach-chip" title="${esc(a.name)} (${formatSize(a.size)}) · 클릭하여 다운로드" onclick="downloadAttachment('${e.id}','${a.id}')">📎 ${esc(a.name)}</span>`).join('')
+          : (e.attach ? esc(e.attach) : '')
+      }</div>
+      <div class="actions">
+        <button class="icon-btn" title="수정" onclick="editEntry('${e.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </button>
+        <button class="icon-btn del" title="삭제" onclick="quickDelete('${e.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function togglePw(id){
+  revealed[id] = !revealed[id];
+  render();
+}
+
+function copyText(id, field, btn){
+  const e = entries.find(x=>x.id===id);
+  if(!e) return;
+  const text = field === 'id' ? e.idValue : e.pw;
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.classList.add('copied');
+    setTimeout(()=>btn.classList.remove('copied'), 900);
+  });
+}
+
+/* ===== Google Drive 연동 ===== */
+const DRIVE_CLIENT_ID_KEY = 'account_manager_drive_client_id';
+const DRIVE_FOLDER_ID_KEY = 'account_manager_drive_folder_id';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+
+let driveAccessToken = null;
+let driveTokenClient = null;
+let driveFolderId = localStorage.getItem(DRIVE_FOLDER_ID_KEY) || null;
+
+function isDriveConnected(){ return !!driveAccessToken; }
+
+function loadGisScript(cb){
+  if(window.google && window.google.accounts && window.google.accounts.oauth2){ cb(); return; }
+  const existing = document.getElementById('gis-script');
+  if(existing){ existing.addEventListener('load', cb); return; }
+  const s = document.createElement('script');
+  s.id = 'gis-script';
+  s.src = 'https://accounts.google.com/gsi/client';
+  s.async = true; s.defer = true;
+  s.onload = cb;
+  s.onerror = () => alert('Google 인증 스크립트를 불러오지 못했습니다. 네트워크 상태를 확인해주세요.');
+  document.head.appendChild(s);
+}
+
+function initDriveTokenClient(){
+  const clientId = localStorage.getItem(DRIVE_CLIENT_ID_KEY);
+  if(!clientId) return null;
+  driveTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: DRIVE_SCOPE,
+    callback: (resp) => {
+      updateDriveButtonState('idle');
+      if(resp.error){
+        alert('Google Drive 인증에 실패했습니다: ' + resp.error);
+        return;
+      }
+      driveAccessToken = resp.access_token;
+      updateDriveButtonState('connected');
+    }
+  });
+  return driveTokenClient;
+}
+
+function onDriveButtonClick(){
+  if(isDriveConnected()){
+    if(confirm('Google Drive 연결을 해제할까요? (이미 업로드된 파일은 Drive에 그대로 남아요)')){
+      driveAccessToken = null;
+      updateDriveButtonState('idle');
+    }
+    return;
+  }
+  const clientId = localStorage.getItem(DRIVE_CLIENT_ID_KEY);
+  if(!clientId){
+    openSettingsModal();
+    return;
+  }
+  updateDriveButtonState('connecting');
+  loadGisScript(()=>{
+    const client = driveTokenClient || initDriveTokenClient();
+    if(client) client.requestAccessToken({prompt:'consent'});
+  });
+}
+
+function updateDriveButtonState(state){
+  const btn = document.getElementById('driveStatusBtn');
+  const text = document.getElementById('driveStatusText');
+  const settingsStatus = document.getElementById('settingsDriveStatus');
+  btn.classList.remove('connected','connecting');
+  if(state === 'connected'){
+    btn.classList.add('connected');
+    text.textContent = 'Drive 연결됨';
+  }else if(state === 'connecting'){
+    btn.classList.add('connecting');
+    text.textContent = '연결 중...';
+  }else{
+    text.textContent = 'Drive 연결';
+  }
+  if(settingsStatus){
+    settingsStatus.textContent = isDriveConnected() ? '현재 Drive에 연결되어 있어요.' : '아직 Drive에 연결되지 않았어요.';
+  }
+}
+
+function driveFetch(url, options={}){
+  options.headers = Object.assign({}, options.headers, {'Authorization': 'Bearer ' + driveAccessToken});
+  return fetch(url, options);
+}
+
+async function ensureDriveFolder(){
+  if(driveFolderId) return driveFolderId;
+  const q = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and name='계정관리_첨부파일' and trashed=false");
+  const res = await driveFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`);
+  const data = await res.json();
+  if(data.files && data.files.length){
+    driveFolderId = data.files[0].id;
+  }else{
+    const createRes = await driveFetch('https://www.googleapis.com/drive/v3/files', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name:'계정관리_첨부파일', mimeType:'application/vnd.google-apps.folder'})
+    });
+    const created = await createRes.json();
+    driveFolderId = created.id;
+  }
+  localStorage.setItem(DRIVE_FOLDER_ID_KEY, driveFolderId);
+  return driveFolderId;
+}
+
+async function uploadFileToDrive(file){
+  await ensureDriveFolder();
+  const metadata = {name: file.name, parents:[driveFolderId]};
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+  form.append('file', file);
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name', {
+    method:'POST',
+    headers:{'Authorization':'Bearer ' + driveAccessToken},
+    body: form
+  });
+  if(!res.ok) throw new Error('업로드 실패 (' + res.status + ')');
+  return res.json();
+}
+
+async function deleteFileFromDrive(fileId){
+  if(!fileId || !isDriveConnected()) return;
+  try{ await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {method:'DELETE'}); }catch(e){}
+}
+
+async function downloadFileFromDrive(fileId, name){
+  if(!isDriveConnected()){
+    alert('Google Drive에 연결한 뒤 다시 시도해주세요.');
+    return;
+  }
+  try{
+    const res = await driveFetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+    if(!res.ok) throw new Error();
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = name;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }catch(e){
+    alert('다운로드에 실패했습니다. Drive 연결 상태를 확인해주세요.');
+  }
+}
+
+function openSettingsModal(){
+  document.getElementById('s_clientId').value = localStorage.getItem(DRIVE_CLIENT_ID_KEY) || '';
+  updateDriveButtonState(isDriveConnected() ? 'connected' : 'idle');
+  document.getElementById('settingsOverlay').classList.add('show');
+}
+function closeSettingsModal(){
+  document.getElementById('settingsOverlay').classList.remove('show');
+}
+function saveSettings(){
+  const clientId = document.getElementById('s_clientId').value.trim();
+  if(clientId){
+    localStorage.setItem(DRIVE_CLIENT_ID_KEY, clientId);
+  }else{
+    localStorage.removeItem(DRIVE_CLIENT_ID_KEY);
+  }
+  closeSettingsModal();
+}
+
+/* ===== 모달 첨부파일 처리 ===== */
+function openModal(id=null){
+  editingId = id;
+  const title = document.getElementById('modalTitle');
+  const delBtn = document.getElementById('deleteInModal');
+  if(id){
+    const e = entries.find(x=>x.id===id);
+    title.textContent = '계정 수정';
+    document.getElementById('f_site').value = e.site;
+    document.getElementById('f_id').value = e.idValue;
+    document.getElementById('f_pw').value = e.pw;
+    document.getElementById('f_web').value = e.web;
+    document.getElementById('f_memo').value = e.memo;
+    modalAttachments = e.attachments ? JSON.parse(JSON.stringify(e.attachments)) : [];
+    delBtn.style.display = 'inline-flex';
+  }else{
+    title.textContent = '계정 추가';
+    ['f_site','f_id','f_pw','f_web','f_memo'].forEach(id=>document.getElementById(id).value='');
+    modalAttachments = [];
+    delBtn.style.display = 'none';
+  }
+  renderModalAttachments();
+  document.getElementById('attachHint').textContent = isDriveConnected()
+    ? 'Google Drive의 "계정관리_첨부파일" 폴더에 저장돼요.'
+    : '이 브라우저의 저장공간에 저장돼요. Drive에 연결하면 Drive에 저장할 수 있어요.';
+  document.getElementById('f_pw').type = 'password';
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('f_site').focus();
+}
+function closeModal(){
+  document.getElementById('overlay').classList.remove('show');
+  editingId = null;
+  modalAttachments = [];
+}
+function toggleModalPw(){
+  const pwInput = document.getElementById('f_pw');
+  pwInput.type = pwInput.type === 'password' ? 'text' : 'password';
+}
+
+async function handleFileSelect(input){
+  const files = Array.from(input.files || []);
+  input.value = '';
+  for(const file of files){
+    if(isDriveConnected()){
+      const chip = {id: uid(), name:file.name, size:file.size, type:file.type, source:'drive', uploading:true};
+      modalAttachments.push(chip);
+      renderModalAttachments();
+      try{
+        const uploaded = await uploadFileToDrive(file);
+        chip.driveId = uploaded.id;
+        chip.uploading = false;
+      }catch(err){
+        modalAttachments = modalAttachments.filter(a => a.id !== chip.id);
+        alert(file.name + ' 업로드에 실패했습니다.');
+      }
+      renderModalAttachments();
+    }else{
+      await new Promise(resolve=>{
+        const reader = new FileReader();
+        reader.onload = () => {
+          modalAttachments.push({id: uid(), name:file.name, size:file.size, type:file.type, source:'local', dataUrl:reader.result});
+          renderModalAttachments();
+          resolve();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  }
+}
+function renderModalAttachments(){
+  const el = document.getElementById('modalAttachList');
+  if(!modalAttachments.length){ el.innerHTML = ''; return; }
+  el.innerHTML = modalAttachments.map(a => `
+    <span class="file-chip">
+      <span class="fname" title="${esc(a.name)}">${a.uploading ? '업로드 중… ' : ''}${esc(a.name)}</span>
+      <span class="fsize">${a.source === 'drive' ? 'Drive' : formatSize(a.size)}</span>
+      <button type="button" class="fremove" title="제거" onclick="removeModalAttachment('${a.id}')">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </span>`).join('');
+}
+function removeModalAttachment(id){
+  const a = modalAttachments.find(x=>x.id===id);
+  if(a && a.source === 'drive' && a.driveId) deleteFileFromDrive(a.driveId);
+  modalAttachments = modalAttachments.filter(a=>a.id!==id);
+  renderModalAttachments();
+}
+function downloadAttachment(entryId, attachId){
+  const e = entries.find(x=>x.id===entryId);
+  if(!e || !e.attachments) return;
+  const a = e.attachments.find(x=>x.id===attachId);
+  if(!a) return;
+  if(a.source === 'drive' && a.driveId){
+    downloadFileFromDrive(a.driveId, a.name);
+  }else if(a.dataUrl){
+    const link = document.createElement('a');
+    link.href = a.dataUrl;
+    link.download = a.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+function saveEntry(){
+  const site = document.getElementById('f_site').value.trim();
+  const idValue = document.getElementById('f_id').value.trim();
+  const pw = document.getElementById('f_pw').value;
+  const web = document.getElementById('f_web').value.trim();
+  const memo = document.getElementById('f_memo').value.trim();
+  const attachments = JSON.parse(JSON.stringify(modalAttachments));
+
+  if(!site){ alert('사이트명을 입력해주세요.'); return; }
+
+  if(editingId){
+    const e = entries.find(x=>x.id===editingId);
+    Object.assign(e, {site, idValue, pw, web, memo, attachments});
+  }else{
+    entries.push({id: uid(), site, idValue, pw, web, memo, attachments});
+  }
+  if(!save()) return;
+  closeModal();
+  render();
+}
+function editEntry(id){ openModal(id); }
+function deleteFromModal(){
+  if(editingId && confirm('이 계정을 삭제하시겠습니까?')){
+    entries = entries.filter(x=>x.id!==editingId);
+    save();
+    closeModal();
+    render();
+  }
+}
+function quickDelete(id){
+  if(confirm('이 계정을 삭제하시겠습니까?')){
+    entries = entries.filter(x=>x.id!==id);
+    delete revealed[id];
+    save();
+    render();
+  }
+}
+
+/* 드래그 앤 드롭으로 순서 변경 */
+let dragSourceId = null;
+
+function onDragStart(ev){
+  const row = ev.currentTarget;
+  dragSourceId = row.dataset.id;
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.dataTransfer.setData('text/plain', dragSourceId);
+  setTimeout(()=> row.classList.add('dragging'), 0);
+}
+
+function onDragOver(ev){
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  const row = ev.currentTarget;
+  if(row.dataset.id === dragSourceId) return;
+  const rect = row.getBoundingClientRect();
+  const isTopHalf = (ev.clientY - rect.top) < rect.height / 2;
+  row.classList.toggle('drag-over-top', isTopHalf);
+  row.classList.toggle('drag-over-bottom', !isTopHalf);
+}
+
+function onDragLeave(ev){
+  ev.currentTarget.classList.remove('drag-over-top','drag-over-bottom');
+}
+
+function onDrop(ev){
+  ev.preventDefault();
+  const row = ev.currentTarget;
+  const targetId = row.dataset.id;
+  const isTopHalf = row.classList.contains('drag-over-top');
+  row.classList.remove('drag-over-top','drag-over-bottom');
+  if(!dragSourceId || dragSourceId === targetId) return;
+
+  const fromIdx = entries.findIndex(x=>x.id===dragSourceId);
+  let toIdx = entries.findIndex(x=>x.id===targetId);
+  if(fromIdx === -1 || toIdx === -1) return;
+
+  const [moved] = entries.splice(fromIdx, 1);
+  toIdx = entries.findIndex(x=>x.id===targetId);
+  const insertAt = isTopHalf ? toIdx : toIdx + 1;
+  entries.splice(insertAt, 0, moved);
+
+  save();
+  render();
+}
+
+function onDragEnd(ev){
+  ev.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.drag-over-top,.drag-over-bottom').forEach(el=>{
+    el.classList.remove('drag-over-top','drag-over-bottom');
+  });
+  dragSourceId = null;
+}
+
+document.getElementById('searchInput').addEventListener('input', render);
+document.getElementById('overlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'overlay') closeModal();
+});
+document.getElementById('settingsOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'settingsOverlay') closeSettingsModal();
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape'){ closeModal(); closeSettingsModal(); }
+});
+
+load();
+render();
+</script>
+</body>
+</html>
